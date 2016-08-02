@@ -1521,7 +1521,7 @@
   //. value is of type `b`.
   //.
   //. The Either type satisfies the [Semigroup][], [Monad][], [Traversable][],
-  //. and [Extend][] specifications.
+  //. [Extend][], and [Bifunctor][] specifications.
 
   //# EitherType :: Type -> Type -> Type
   //.
@@ -1716,6 +1716,8 @@
   //. returns a Right whose value is the result of applying the function to
   //. this Right's value.
   //.
+  //. See also [`Either#bimap`](#Either.prototype.bimap).
+  //.
   //. ```javascript
   //. > S.Left('Cannot divide by zero').map(S.inc)
   //. Left('Cannot divide by zero')
@@ -1731,6 +1733,35 @@
          {},
          [$Either(a, b), $.Function, $Either(a, c)],
          Either$prototype$map);
+
+  //# Either#bimap :: Either a b ~> (a -> c) -> (b -> d) -> Either c d
+  //.
+  //. Takes two functions and returns:
+  //.
+  //.   - a Left whose value is the result of applying the first function
+  //.     to this Left's value if `this` is a Left; otherwise
+  //.
+  //.   - a Right whose value is the result of applying the second function
+  //.     to this Right's value.
+  //.
+  //. Similar to [`Either#map`](#Either.prototype.map), but supports mapping
+  //. over the left side as well as the right side.
+  //.
+  //. ```javascript
+  //. > Left('abc').bimap(S.toUpper, S.inc)
+  //. Left('ABC')
+  //.
+  //. > Right(42).bimap(S.toUpper, S.inc)
+  //. Right(43)
+  //. ```
+  function Either$prototype$bimap(self, f, g) {
+    return self.isLeft ? Left(f(self.value)) : Right(g(self.value));
+  }
+  Either.prototype.bimap =
+  method('Either#bimap',
+         {},
+         [$Either(a, b), $.Function, $.Function, $Either(c, d)],
+         Either$prototype$bimap);
 
   //# Either#ap :: Either a (b -> c) ~> Either a b -> Either a c
   //.
@@ -3491,6 +3522,7 @@
 //. [$.Array]:          https://github.com/sanctuary-js/sanctuary-def/#array
 //. [$.String]:         https://github.com/sanctuary-js/sanctuary-def/#string
 //. [Apply]:            https://github.com/fantasyland/fantasy-land#apply
+//. [Bifunctor]:        https://github.com/fantasyland/fantasy-land#bifunctor
 //. [BinaryType]:       https://github.com/sanctuary-js/sanctuary-def#binarytype
 //. [Extend]:           https://github.com/fantasyland/fantasy-land#extend
 //. [Foldable]:         https://github.com/fantasyland/fantasy-land#foldable

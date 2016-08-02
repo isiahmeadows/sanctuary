@@ -36,6 +36,35 @@ suite('Left', function() {
            'The value at position 1 is not a member of ‘Either a b’.\n');
   });
 
+  test('"bimap" method', function() {
+    eq(S.Left('abc').bimap.length, 2);
+    eq(S.Left('abc').bimap(S.toUpper, S.inc), S.Left('ABC'));
+
+    throws(function() { S.Left('abc').bimap(null, null); },
+           TypeError,
+           'Invalid value\n' +
+           '\n' +
+           'Either#bimap :: Either a b -> Function -> Function -> Either c d\n' +
+           '                              ^^^^^^^^\n' +
+           '                                 1\n' +
+           '\n' +
+           '1)  null :: Null\n' +
+           '\n' +
+           'The value at position 1 is not a member of ‘Function’.\n');
+
+    throws(function() { S.Left('abc').bimap(S.toUpper, null); },
+           TypeError,
+           'Invalid value\n' +
+           '\n' +
+           'Either#bimap :: Either a b -> Function -> Function -> Either c d\n' +
+           '                                          ^^^^^^^^\n' +
+           '                                             1\n' +
+           '\n' +
+           '1)  null :: Null\n' +
+           '\n' +
+           'The value at position 1 is not a member of ‘Function’.\n');
+  });
+
   test('"chain" method', function() {
     eq(S.Left('abc').chain.length, 1);
     eq(S.Left('abc').chain(squareRoot), S.Left('abc'));
@@ -214,6 +243,21 @@ suite('Left', function() {
 
     // composition
     eq(a.map(function(x) { return f(g(x)); }).equals(a.map(g).map(f)), true);
+  });
+
+  test('Bifunctor', function() {
+    var f = S.concat('f');
+    var g = S.concat('g');
+    var h = S.mult(2);
+    var i = S.inc;
+
+    // identity
+    eq(S.Left('abc').bimap(S.I, S.I), S.Left('abc'));
+
+    // composition
+    eq(S.Left('abc').bimap(function(a) { return f(g(a)); },
+                           function(b) { return h(i(b)); }),
+       S.Left('abc').bimap(g, i).bimap(f, h));
   });
 
   test('Apply', function() {
