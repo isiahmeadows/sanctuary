@@ -1,7 +1,5 @@
 'use strict';
 
-var Z = require('sanctuary-type-classes');
-
 var S = require('..');
 
 var eq = require('./internal/eq');
@@ -14,6 +12,6 @@ test('C', function() {
   eq(S.C.toString(), 'C :: (a -> b -> c) -> b -> a -> c');
 
   eq(S.C(S.concat, 'foo', 'bar'), 'barfoo');
-  eq(Z.map(S.C(S.concat, '!'), ['BAM', 'POW', 'KA-POW']), ['BAM!', 'POW!', 'KA-POW!']);
+  eq(S.map(S.C(S.concat, '!'), ['BAM', 'POW', 'KA-POW']), ['BAM!', 'POW!', 'KA-POW!']);
 
 });
