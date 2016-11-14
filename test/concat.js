@@ -19,7 +19,7 @@ test('concat', function() {
          '          ^^^^^^^^^^^    ^\n' +
          '                         1\n' +
          '\n' +
-         '1)  /XXX/ :: RegExp\n' +
+         '1)  /XXX/ :: RegExp, NonGlobalRegExp\n' +
          '\n' +
          '‘concat’ requires ‘a’ to satisfy the Semigroup type-class constraint; the value at position 1 does not.\n');
 
