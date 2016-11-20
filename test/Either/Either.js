@@ -5,27 +5,11 @@ var R = require('ramda');
 
 var S = require('../..');
 
+var Identity = require('../internal/Identity');
+var laws = require('../internal/laws');
+var squareRoot = require('../internal/squareRoot');
 var throws = require('../internal/throws');
 
-
-//  Identity :: a -> Identity a
-var Identity = function Identity(x) {
-  return {
-    of: Identity,
-    map: function(fn) {
-      return Identity(fn(x));
-    },
-    ap: function(y) {
-      return Identity(x(y));
-    },
-    equals: function(other) {
-      return R.equals(x, other.value);
-    },
-    value: x
-  };
-};
-
-Identity.of = Identity;
 
 //  IdentityArb :: Arbitrary a -> Arbitrary (Identity a)
 var IdentityArb = function(arb) {
@@ -52,65 +36,149 @@ var RightArb = function(arb) {
   return arb.smap(S.Right, function(e) { return e.value; }, R.toString);
 };
 
-//  Compose :: Apply f, Apply g
-//          => { of: b -> f b } -> { of: c -> g c }
-//          -> f (g a) -> Compose f g a
-var Compose = function(F, G) {
-  var _Compose = function _Compose(x) {
-    return {
-      constructor: _Compose,
-      map: function(f) {
-        return _Compose(R.map(R.map(f), x));
-      },
-      ap: function(y) {
-        return _Compose(R.ap(R.map(R.ap, x), y.value));
-      },
-      equals: function(other) {
-        return R.equals(x, other.value);
-      },
-      value: x
-    };
-  };
-  _Compose.of = function(x) {
-    return _Compose(F.of(G.of(x)));
-  };
-  return _Compose;
-};
-
 suite('Either', function() {
 
   test('throws if called', function() {
     throws(function() { S.Either(); }, Error, 'Cannot instantiate Either');
   });
 
+  suite('Setoid laws', function() {
+
+    laws.Setoid.reflexivity(
+      EitherArb(jsc.string, jsc.falsy)
+    );
+
+    laws.Setoid.symmetry(
+      EitherArb(jsc.bool, jsc.bool),
+      EitherArb(jsc.bool, jsc.bool)
+    );
+
+    laws.Setoid.transitivity(
+      EitherArb(jsc.bool, jsc.bool),
+      EitherArb(jsc.bool, jsc.bool),
+      EitherArb(jsc.bool, jsc.bool)
+    );
+
+  });
+
+  suite('Semigroup laws', function() {
+
+    laws.Semigroup.associativity(
+      EitherArb(jsc.string, jsc.string),
+      EitherArb(jsc.string, jsc.string),
+      EitherArb(jsc.string, jsc.string)
+    );
+
+  });
+
+  suite('Functor laws', function() {
+
+    laws.Functor.identity(
+      EitherArb(jsc.string, jsc.number)
+    );
+
+    laws.Functor.composition(
+      EitherArb(jsc.string, jsc.number),
+      jsc.constant(Math.sqrt),
+      jsc.constant(Math.abs)
+    );
+
+  });
+
+  suite('Apply laws', function() {
+
+    laws.Apply.composition(
+      EitherArb(jsc.string, jsc.constant(Math.sqrt)),
+      EitherArb(jsc.string, jsc.constant(Math.abs)),
+      EitherArb(jsc.string, jsc.number)
+    );
+
+  });
+
+  suite('Applicative laws', function() {
+
+    laws.Applicative.identity(
+      jsc.constant(S.Either.of),
+      EitherArb(jsc.string, jsc.number)
+    );
+
+    laws.Applicative.homomorphism(
+      jsc.constant(S.Either.of),
+      jsc.constant(Math.abs),
+      jsc.number
+    );
+
+    laws.Applicative.interchange(
+      jsc.constant(S.Either.of),
+      EitherArb(jsc.string, jsc.constant(Math.abs)),
+      jsc.number
+    );
+
+  });
+
+  suite('Chain laws', function() {
+
+    laws.Chain.associativity(
+      EitherArb(jsc.string, jsc.array(jsc.number)),
+      jsc.constant(function(xs) { return xs.length > 0 ? S.Right(xs[0]) : S.Left('Empty list'); }),
+      jsc.constant(squareRoot)
+    );
+
+  });
+
+  suite('Monad laws', function() {
+
+    laws.Monad.leftIdentity(
+      jsc.constant(S.Either),
+      jsc.constant(squareRoot),
+      jsc.number
+    );
+
+    laws.Monad.rightIdentity(
+      jsc.constant(S.Either),
+      EitherArb(jsc.string, jsc.number)
+    );
+
+  });
+
+  suite('Foldable laws', function() {
+
+    laws.Foldable.associativity(
+      jsc.constant(function(x, y) { return x + y; }),
+      jsc.number,
+      EitherArb(jsc.string, jsc.number)
+    );
+
+  });
+
   suite('Traversable laws', function() {
 
-    test('satisfies naturality', function() {
-      jsc.assert(jsc.forall(EitherArb(jsc.integer, IdentityArb(jsc.string)), function(either) {
-        var lhs = identityToMaybe(either.sequence(Identity.of));
-        var rhs = either.map(identityToMaybe).sequence(S.Maybe.of);
-        return lhs.equals(rhs);
-      }));
-    });
+    laws.Traversable.naturality(
+      jsc.constant(identityToMaybe),
+      EitherArb(jsc.string, IdentityArb(jsc.number)),
+      jsc.constant(Identity),
+      jsc.constant(S.Maybe)
+    );
 
-    test('satisfies identity', function() {
-      jsc.assert(jsc.forall(EitherArb(jsc.integer, jsc.string), function(either) {
-        var lhs = either.map(Identity).sequence(Identity.of);
-        var rhs = Identity.of(either);
-        return lhs.equals(rhs);
-      }));
-    });
+    laws.Traversable.identity(
+      EitherArb(jsc.string, jsc.number)
+    );
 
-    test('satisfies composition', function() {
-      jsc.assert(jsc.forall(EitherArb(jsc.string, IdentityArb(EitherArb(jsc.string, jsc.integer))), function(u) {
-        var C = Compose(Identity, S.Either);
-        var lhs = u.map(C).sequence(C.of);
-        var rhs = C(u.sequence(Identity.of).map(function(x) {
-          return x.sequence(S.Either.of);
-        }));
-        return lhs.equals(rhs);
-      }));
-    });
+    laws.Traversable.composition(
+      EitherArb(jsc.string, IdentityArb(EitherArb(jsc.string, jsc.number))),
+      jsc.constant(Identity),
+      jsc.constant(S.Either)
+    );
+
+  });
+
+  suite('Extend laws', function() {
+
+    laws.Extend.associativity(
+      EitherArb(jsc.string, jsc.integer),
+      jsc.constant(function(either) { return either.value + 1; }),
+      jsc.constant(function(either) { return either.value * either.value; })
+    );
 
   });
 
