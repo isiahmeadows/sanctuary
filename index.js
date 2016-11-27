@@ -206,7 +206,10 @@
 
   'use strict';
 
-  var sentinel = {};
+  /* istanbul ignore next */
+  var global_ =
+  typeof self === 'object' && self != null && self.self === self ? self
+                                                                 : global;
 
   var _slice = Array.prototype.slice;
   var _toString = Object.prototype.toString;
@@ -335,10 +338,11 @@
   var TypeRep = $.NullaryType(
     'sanctuary/TypeRep',
     function(x) {
-      return R.type(x) === 'Function' ||
-             (x != null &&
-              R.type(x.name) === 'String' &&
-              R.type(x.test) === 'Function');
+      return R.type(x) === 'Function'
+          && R.type(global_[x.name]) === 'Function'
+          || x != null
+          && x.prototype != null
+          && R.type(x.prototype['@@type']) === 'String';
     }
   );
 
@@ -364,7 +368,7 @@
 
   /* eslint-disable indent */
 
-  var S = {EitherType: $Either, MaybeType: $Maybe};
+  var S = {};
 
   //# create :: { checkTypes :: Boolean, env :: Array Type } -> Module
   //.
@@ -498,12 +502,11 @@
   //. false
   //. ```
   function is(typeRep, x) {
-    if (_toString.call(typeRep.prototype['@@type']) === '[object String]') {
-      return x != null && x['@@type'] === typeRep.prototype['@@type'];
-    } else {
-      var match = /function (\w*)/.exec(typeRep);
-      return match != null && match[1] === type(x);
-    }
+    return type(x) ===
+           (typeRep.prototype != null &&
+            _toString.call(typeRep.prototype['@@type']) === '[object String]' ?
+              typeRep.prototype['@@type'] :
+              typeRep.name);
   }
   S.is = def('is', {}, [TypeRep, $.Any, $.Boolean], is);
 
@@ -869,17 +872,18 @@
   //# MaybeType :: Type -> Type
   //.
   //. A [`UnaryType`][UnaryType] for use with [sanctuary-def][].
+  S.MaybeType = $Maybe;
 
   //# Maybe :: TypeRep Maybe
   //.
   //. The [type representative](#type-representatives) for the Maybe type.
-  function Maybe(x, tag, value) {
-    if (x !== sentinel) throw new Error('Cannot instantiate Maybe');
+  var Maybe = S.Maybe = {prototype: _Maybe.prototype};
+
+  function _Maybe(tag, value) {
     this.isNothing = tag === 'Nothing';
     this.isJust = tag === 'Just';
     if (this.isJust) this.value = value;
   }
-  S.Maybe = Maybe;
 
   //# Nothing :: Maybe a
   //.
@@ -889,7 +893,7 @@
   //. > S.Nothing
   //. Nothing
   //. ```
-  var Nothing = S.Nothing = new Maybe(sentinel, 'Nothing');
+  var Nothing = S.Nothing = new _Maybe('Nothing');
 
   //# Just :: a -> Maybe a
   //.
@@ -900,7 +904,7 @@
   //. Just(42)
   //. ```
   function Just(x) {
-    return new Maybe(sentinel, 'Just', x);
+    return new _Maybe('Just', x);
   }
   S.Just = def('Just', {}, [a, $Maybe(a)], Just);
 
@@ -1526,17 +1530,18 @@
   //# EitherType :: Type -> Type -> Type
   //.
   //. A [`BinaryType`][BinaryType] for use with [sanctuary-def][].
+  S.EitherType = $Either;
 
   //# Either :: TypeRep Either
   //.
   //. The [type representative](#type-representatives) for the Either type.
-  function Either(x, tag, value) {
-    if (x !== sentinel) throw new Error('Cannot instantiate Either');
+  var Either = S.Either = {prototype: _Either.prototype};
+
+  function _Either(tag, value) {
     this.isLeft = tag === 'Left';
     this.isRight = tag === 'Right';
     this.value = value;
   }
-  S.Either = Either;
 
   //# Left :: a -> Either a b
   //.
@@ -1547,7 +1552,7 @@
   //. Left('Cannot divide by zero')
   //. ```
   function Left(x) {
-    return new Either(sentinel, 'Left', x);
+    return new _Either('Left', x);
   }
   S.Left = def('Left', {}, [a, $Either(a, b)], Left);
 
@@ -1560,7 +1565,7 @@
   //. Right(42)
   //. ```
   function Right(x) {
-    return new Either(sentinel, 'Right', x);
+    return new _Either('Right', x);
   }
   S.Right = def('Right', {}, [b, $Either(a, b)], Right);
 

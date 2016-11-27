@@ -28,6 +28,7 @@ README.md: index.js
 lint:
 	$(ESLINT) \
 	  --global define \
+	  --global global \
 	  --global module \
 	  --global require \
 	  --global self \
